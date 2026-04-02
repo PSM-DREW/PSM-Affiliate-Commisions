@@ -11,7 +11,7 @@ function initBot() {
     return;
   }
 
-  bot = new TelegramBot(token, { polling: true });
+  bot = new TelegramBot(token, { polling: false });
 
   bot.on('message', (msg) => {
     const chatId = msg.chat.id.toString();
