@@ -345,6 +345,17 @@ app.post('/report/:id/delete', (req, res) => {
   res.redirect(`/affiliate/${report.affiliate_id}`);
 });
 
+// ─── One-time import endpoint (remove after use) ───
+app.post('/admin/import', (req, res) => {
+  const { execSync } = require('child_process');
+  try {
+    const output = execSync('sh import-all.sh', { cwd: __dirname, timeout: 30000 }).toString();
+    res.type('text').send(output);
+  } catch (e) {
+    res.type('text').status(500).send(e.stdout ? e.stdout.toString() : e.message);
+  }
+});
+
 // Start
 initBot();
 app.listen(PORT, () => console.log(`PSM Commissions running on port ${PORT}`));
