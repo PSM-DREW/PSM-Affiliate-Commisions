@@ -1,10 +1,8 @@
 const Database = require('better-sqlite3');
 const path = require('path');
+const fs = require('fs');
 
 const dbPath = path.join(__dirname, 'data', 'commissions.db');
-
-// Ensure data directory exists
-const fs = require('fs');
 fs.mkdirSync(path.join(__dirname, 'data'), { recursive: true });
 
 const db = new Database(dbPath);
@@ -30,10 +28,14 @@ db.exec(`
     week_start TEXT NOT NULL,
     week_end TEXT NOT NULL,
     active_players INTEGER NOT NULL DEFAULT 0,
+    referred_players INTEGER NOT NULL DEFAULT 0,
     net_sc REAL NOT NULL DEFAULT 0,
     sold_usd REAL NOT NULL DEFAULT 0,
     processing_fees REAL NOT NULL DEFAULT 0,
     bonuses REAL NOT NULL DEFAULT 0,
+    adjustment REAL NOT NULL DEFAULT 0,
+    adjustment_note TEXT,
+    extra_expenses TEXT DEFAULT '[]',
     total_expenses REAL NOT NULL DEFAULT 0,
     carryover_in REAL NOT NULL DEFAULT 0,
     net REAL NOT NULL DEFAULT 0,
@@ -59,5 +61,16 @@ db.exec(`
     UNIQUE(affiliate_id, week_start)
   );
 `);
+
+// Migrations for existing databases
+const migrations = [
+  'ALTER TABLE weekly_reports ADD COLUMN referred_players INTEGER NOT NULL DEFAULT 0',
+  'ALTER TABLE weekly_reports ADD COLUMN adjustment REAL NOT NULL DEFAULT 0',
+  'ALTER TABLE weekly_reports ADD COLUMN adjustment_note TEXT',
+  "ALTER TABLE weekly_reports ADD COLUMN extra_expenses TEXT DEFAULT '[]'",
+];
+for (const sql of migrations) {
+  try { db.exec(sql); } catch (e) {}
+}
 
 module.exports = db;

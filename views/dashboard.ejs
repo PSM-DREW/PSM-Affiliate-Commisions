@@ -1,15 +1,17 @@
-<%- include('layout', { body: `
-<div class="flex-between mb-4">
-  <h1 style="font-size:22px; color:#7B4FFF;">Affiliates</h1>
-  <button class="btn btn-gold" onclick="document.getElementById('newModal').style.display='block'">+ Add Affiliate</button>
-</div>
-
-<div class="card" style="padding:0; overflow-x:auto;">
+<%
+function renderTable(affiliates, tierLabel, tierColor) {
+  return `
+<div class="card" style="padding:0; overflow-x:auto; border-left: 3px solid ${tierColor};">
+  <div style="padding:12px 20px; border-bottom:1px solid #1a1a2e;" class="flex-between">
+    <h2 style="margin:0; color:${tierColor}; font-size:14px;">${tierLabel}</h2>
+    <span class="text-gray" style="font-size:11px;">${affiliates.length} affiliate${affiliates.length !== 1 ? 's' : ''}</span>
+  </div>
   <table>
     <thead>
       <tr>
         <th>Username</th>
-        <th>4-wk Avg Players</th>
+        <th>Referred</th>
+        <th>Sold USD</th>
         <th>Carryover</th>
         <th>Last Commission</th>
         <th>Status</th>
@@ -18,11 +20,12 @@
       </tr>
     </thead>
     <tbody>
-      ${affiliates.length === 0 ? '<tr><td colspan="7" style="text-align:center;color:#888;padding:30px;">No affiliates yet. Add one to get started.</td></tr>' : ''}
+      ${affiliates.length === 0 ? '<tr><td colspan="8" style="text-align:center;color:#888;padding:20px;">No affiliates in this tier.</td></tr>' : ''}
       ${affiliates.map(a => `
         <tr>
           <td><a href="/affiliate/${a.id}">${a.username}</a></td>
-          <td>${a.playerAvg}</td>
+          <td>${a.lastReferredPlayers}</td>
+          <td>${formatCurrency(a.lastSoldUsd)}</td>
           <td class="${a.carryover < 0 ? 'text-red' : ''}">${formatCurrency(a.carryover)}</td>
           <td class="text-green">${formatCurrency(a.lastCommission)}</td>
           <td>
@@ -30,13 +33,48 @@
               a.lastStatus === 'unpaid' ? '<span class="badge badge-unpaid">Unpaid</span>' :
               '<span class="badge badge-na">N/A</span>'}
           </td>
-          <td>${a.telegram_chat_id ? '<span class="text-green">Connected</span>' : '<span class="text-gray">—</span>'}</td>
+          <td>${a.telegram_chat_id ? '<span class="text-green" id="tg-status-' + a.id + '">Connected</span> <button class="btn btn-outline btn-sm" style="font-size:9px;padding:2px 6px;" onclick="verifyTelegram(' + a.id + ')">Test</button>' : '<span class="text-gray">\u2014</span>'}</td>
           <td><a href="/report/new?affiliate_id=${a.id}" class="btn btn-outline btn-sm">New Report</a></td>
         </tr>
       `).join('')}
     </tbody>
   </table>
+</div>`;
+}
+%>
+<%- include('layout', { body: `
+<div class="flex-between mb-4">
+  <h1 style="font-size:22px; color:#7B4FFF;">Affiliates</h1>
+  <button class="btn btn-gold" onclick="document.getElementById('newModal').style.display='block'">+ Add Affiliate</button>
 </div>
+
+${renderTable(top, 'TOP PARTNERS \u2014 $5,000+ Sold', '#7B4FFF')}
+${renderTable(mid, 'MID-TIER \u2014 $1,000\u2013$4,999 Sold', '#00D4C8')}
+${renderTable(misc, 'MISC \u2014 Under $1,000 Sold', '#555')}
+
+<script>
+function verifyTelegram(id) {
+  const el = document.getElementById('tg-status-' + id);
+  el.textContent = 'Testing...';
+  el.className = 'text-gray';
+  fetch('/affiliate/' + id + '/telegram-verify', { method: 'POST' })
+    .then(r => r.json())
+    .then(data => {
+      if (data.success) {
+        el.textContent = 'Verified';
+        el.className = 'text-green';
+      } else {
+        el.textContent = 'Failed';
+        el.className = 'text-red';
+        el.title = data.error || 'Could not reach this chat ID';
+      }
+    })
+    .catch(() => {
+      el.textContent = 'Error';
+      el.className = 'text-red';
+    });
+}
+</script>
 
 <!-- New Affiliate Modal -->
 <div id="newModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.7); z-index:100; display:none; align-items:center; justify-content:center;">

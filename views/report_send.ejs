@@ -1,7 +1,8 @@
 <%- include('layout', { body: `
 <div class="flex-between mb-4">
-  <h1 style="font-size:22px; color:#7B4FFF;">Send Report</h1>
+  <h1 style="font-size:22px; color:#7B4FFF;">Report: ${report.week_label}</h1>
   <div class="flex gap-2">
+    <a href="/report/${report.id}/edit" class="btn btn-outline btn-sm">Edit</a>
     <a href="/affiliate/${affiliate.id}" class="btn btn-outline btn-sm">Back to ${affiliate.username}</a>
     <a href="/report/${report.id}/pdf" class="btn btn-outline btn-sm">Download PDF</a>
   </div>
@@ -13,10 +14,10 @@
       <h2>Report Summary</h2>
       <div class="calc-row"><span class="label">Affiliate</span><span class="value">${affiliate.username}</span></div>
       <div class="calc-row"><span class="label">Week</span><span class="value">${report.week_range}</span></div>
-      <div class="calc-row"><span class="label">Label</span><span class="value">${report.week_label}</span></div>
 
       <div class="section-header">PERFORMANCE</div>
       <div class="calc-row"><span class="label">Active Players</span><span class="value">${report.active_players}</span></div>
+      <div class="calc-row"><span class="label">Referred Players</span><span class="value">${report.referred_players || 0}</span></div>
       <div class="calc-row"><span class="label">Players (4-wk avg)</span><span class="value text-gold">${Math.round(avg * 100) / 100}</span></div>
       <div class="calc-row"><span class="label">Sold USD</span><span class="value">${formatCurrency(report.sold_usd)}</span></div>
       <div class="calc-row"><span class="label">NET SC</span><span class="value">${formatCurrency(report.net_sc)}</span></div>
@@ -24,6 +25,8 @@
       <div class="section-header">EXPENSES</div>
       <div class="calc-row"><span class="label">Processing Fees (6.25%)</span><span class="value">${formatCurrency(report.processing_fees)}</span></div>
       <div class="calc-row"><span class="label">Bonuses</span><span class="value">${formatCurrency(report.bonuses)}</span></div>
+      ${report.adjustment ? '<div class="calc-row"><span class="label">Adjustment' + (report.adjustment_note ? ' (' + report.adjustment_note + ')' : '') + '</span><span class="value">' + formatCurrency(report.adjustment) + '</span></div>' : ''}
+      ${extras.map(e => '<div class="calc-row"><span class="label">' + e.label + '</span><span class="value">' + formatCurrency(e.amount) + '</span></div>').join('')}
       <div class="calc-row"><span class="label">Total Expenses</span><span class="value text-gold">${formatCurrency(report.total_expenses)}</span></div>
 
       <div class="section-header">NET CALCULATION</div>
@@ -46,24 +49,20 @@
     <div class="card">
       <h2>Status</h2>
       <div class="flex gap-2 mb-4">
-        <span class="badge ${report.status === 'paid' ? 'badge-paid' : 'badge-unpaid'}" id="statusBadge">${report.status}</span>
-        <button class="btn btn-sm ${report.status === 'paid' ? 'btn-red' : 'btn-green'}" id="statusBtn"
+        <span class="badge ${report.status === 'paid' ? 'badge-paid' : 'badge-unpaid'}">${report.status}</span>
+        <button class="btn btn-sm ${report.status === 'paid' ? 'btn-red' : 'btn-green'}"
           onclick="toggleStatus('${report.status === 'paid' ? 'unpaid' : 'paid'}')">
           Mark ${report.status === 'paid' ? 'Unpaid' : 'Paid'}
         </button>
       </div>
-      ${report.sent_via_telegram ? '<p class="text-green" style="font-size:12px;">✓ Sent via Telegram' + (report.telegram_sent_at ? ' at ' + report.telegram_sent_at : '') + '</p>' : ''}
+      ${report.sent_via_telegram ? '<p class="text-green" style="font-size:12px;">\u2713 Sent via Telegram' + (report.telegram_sent_at ? ' at ' + report.telegram_sent_at : '') + '</p>' : ''}
     </div>
 
     <div class="card">
       <h2>Send via Telegram</h2>
       ${!affiliate.telegram_chat_id ?
-        '<p class="text-red" style="font-size:13px;">This affiliate has no Telegram chat ID. They need to message the bot first, or you can set it manually on their profile.</p>' :
-        `<p class="text-gray mb-4" style="font-size:12px;">Will send to chat ID: ${affiliate.telegram_chat_id}</p>
-        <button class="btn btn-green" style="width:100%;padding:14px;font-size:15px;" id="sendBtn" onclick="sendTelegram()">
-          Send Report via Telegram
-        </button>
-        <div id="sendResult" class="mt-4"></div>`
+        '<p class="text-red" style="font-size:13px;">No Telegram chat ID set. The affiliate needs to message the bot, or set it manually on their profile.</p>' :
+        '<p class="text-gray mb-4" style="font-size:12px;">Will send to chat ID: ' + affiliate.telegram_chat_id + '</p><button class="btn btn-green" style="width:100%;padding:14px;font-size:15px;" id="sendBtn" onclick="sendTelegram()">Send Report via Telegram</button><div id="sendResult" class="mt-4"></div>'
       }
     </div>
   </div>
@@ -75,27 +74,26 @@ function toggleStatus(newStatus) {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
     body: JSON.stringify({status: newStatus})
-  }).then(() => location.reload());
+  }).then(function() { location.reload(); });
 }
 
 function sendTelegram() {
-  const btn = document.getElementById('sendBtn');
+  var btn = document.getElementById('sendBtn');
   btn.disabled = true;
   btn.textContent = 'Sending...';
-
   fetch('/report/${report.id}/telegram', { method: 'POST' })
-    .then(r => r.json())
-    .then(data => {
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
       if (data.success) {
         document.getElementById('sendResult').innerHTML = '<div class="alert alert-success">Report sent successfully!</div>';
-        btn.textContent = 'Sent ✓';
+        btn.textContent = 'Sent \u2713';
       } else {
         document.getElementById('sendResult').innerHTML = '<div class="alert alert-error">Error: ' + data.error + '</div>';
         btn.disabled = false;
         btn.textContent = 'Retry Send';
       }
     })
-    .catch(err => {
+    .catch(function(err) {
       document.getElementById('sendResult').innerHTML = '<div class="alert alert-error">Network error: ' + err.message + '</div>';
       btn.disabled = false;
       btn.textContent = 'Retry Send';

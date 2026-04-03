@@ -83,6 +83,7 @@ function generatePDF(report, affiliate) {
     const avg = counts.length > 0 ? counts.reduce((a, b) => a + b, 0) / counts.length : 0;
 
     row('Active Players (this week)', report.active_players.toString());
+    row('Referred Players', (report.referred_players || 0).toString());
     row('Players (4-wk avg)', (Math.round(avg * 100) / 100).toString());
     row('Sold USD', formatCurrency(report.sold_usd));
     row('NET SC', formatCurrency(report.net_sc));
@@ -92,6 +93,12 @@ function generatePDF(report, affiliate) {
     sectionHeader('EXPENSES');
     row('Processing Fees (6.25%)', formatCurrency(report.processing_fees));
     row('Bonuses', formatCurrency(report.bonuses));
+    if (report.adjustment) {
+      row('Adjustment' + (report.adjustment_note ? ' (' + report.adjustment_note + ')' : ''), formatCurrency(report.adjustment));
+    }
+    let extras = [];
+    try { extras = JSON.parse(report.extra_expenses || '[]'); } catch (e) {}
+    extras.forEach(e => row(e.label, formatCurrency(e.amount)));
     row('Total Expenses', formatCurrency(report.total_expenses), purple);
     y += 5;
 

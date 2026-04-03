@@ -11,7 +11,7 @@ function initBot() {
     return;
   }
 
-  bot = new TelegramBot(token, { polling: false });
+  bot = new TelegramBot(token, { polling: true });
 
   bot.on('message', (msg) => {
     const chatId = msg.chat.id.toString();
@@ -112,7 +112,7 @@ NET SC: ${formatCurrency(report.net_sc)}
 
 *EXPENSES*
 Processing Fees (6.25%): ${formatCurrency(report.processing_fees)}
-Bonuses: ${formatCurrency(report.bonuses)}
+Bonuses: ${formatCurrency(report.bonuses)}${report.adjustment ? '\nAdjustment' + (report.adjustment_note ? ' (' + report.adjustment_note + ')' : '') + ': ' + formatCurrency(report.adjustment) : ''}${(() => { let ex = []; try { ex = JSON.parse(report.extra_expenses || '[]'); } catch(e) {} return ex.map(e => '\n' + e.label + ': ' + formatCurrency(e.amount)).join(''); })()}
 Total Expenses: ${formatCurrency(report.total_expenses)}
 
 *NET CALCULATION*
@@ -147,4 +147,11 @@ _Generated ${now} CST · PlaySlotsMobile_`;
   `).run(report.id);
 }
 
-module.exports = { initBot, sendReport, formatCurrency };
+async function testConnection(chatId, username) {
+  if (!bot) throw new Error('Telegram bot not initialized');
+  await bot.sendMessage(chatId,
+    `✅ Connection verified for ${username}. PSM Commissions can reach this chat.`
+  );
+}
+
+module.exports = { initBot, sendReport, formatCurrency, testConnection };
